@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "name": "llm-adversarial-red-teaming-fuzzer",
+  "builds": [
+    {
+      "src": "portal/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/portal/$1"
+    }
+  ]
+}

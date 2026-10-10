@@ -161,7 +161,20 @@ Run the fuzzer against Ollama:
 python -m cli.main --target http://localhost:11434 --model llama3 --iterations 10 --max-turns 3
 ```
 
-### 4. Run with Docker Compose
+### 4. Launch Interactive Web Portal (Showcase Console)
+
+Launch the high-impact **Vanguard Red-Team Ops** web portal to visually showcase the multi-agent fuzzing studio, ATLAS matrix navigator, and mutator laboratory in the browser:
+
+```bash
+# Option A: Fast Python static server
+python -m http.server 8080 -d portal
+
+# Option B: Node.js / NPX
+npm start
+```
+Then navigate to: `http://localhost:8080`
+
+### 5. Run with Docker Compose
 
 Spin up the complete local evaluation stack (Mock LLM, Fuzzer CLI, and Web Dashboard):
 
