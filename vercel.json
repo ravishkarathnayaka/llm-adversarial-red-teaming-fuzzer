@@ -1,4 +1,9 @@
 {
-  "outputDirectory": "portal",
-  "cleanUrls": true
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/api",
+      "destination": "/api/health"
+    }
+  ]
 }

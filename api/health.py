@@ -1,5 +1,5 @@
 """
-ATLAS Fuzzer — Vercel Serverless Function Entrypoint
+ATLAS Fuzzer — Vercel Serverless Function Health & Metadata Endpoint
 Automated Multi-Agent Adversarial Red-Teaming & Safety Benchmark Engine
 """
 from http.server import BaseHTTPRequestHandler
@@ -25,7 +25,7 @@ class handler(BaseHTTPRequestHandler):
             ],
             "endpoints": {
                 "portal": "/",
-                "api": "/api/index"
+                "health": "/api/health"
             }
         }
         self.wfile.write(json.dumps(response_payload, indent=2).encode('utf-8'))
