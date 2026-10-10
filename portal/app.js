@@ -1,6 +1,6 @@
 /**
- * ATLAS Fuzzer — Multi-Agent Adversarial Red Teaming & Jailbreak Engine
- * Interactive Portal Application Logic & In-Browser Simulation Engine
+ * ATLAS Fuzzer — Cyber Obsidian & Crimson Nova Edition
+ * Interactive Portal Application Logic & In-Browser Multi-Agent Simulation Engine
  */
 
 // -----------------------------------------------------------------------------
@@ -215,17 +215,19 @@ const state = {
 
 document.addEventListener("DOMContentLoaded", () => {
   initNavigation();
-  initScenarioSelector();
+  initScenarioCarousel();
+  initScenarioPanel(SEED_SCENARIOS[0]);
   initMatrixView();
   initMutatorLab();
   initAnalyticsView();
   initExportView();
   initTargetSelector();
   attachControlListeners();
+  updateRadialGauge(88.0);
 });
 
 function initNavigation() {
-  const tabs = document.querySelectorAll(".nav-tab");
+  const tabs = document.querySelectorAll(".nav-btn");
   tabs.forEach(tab => {
     tab.addEventListener("click", () => {
       const targetPane = tab.dataset.tab;
@@ -244,58 +246,70 @@ function initNavigation() {
 
 function initTargetSelector() {
   const selector = document.getElementById("target-engine-select");
-  const statusLabel = document.getElementById("target-status-label");
   const customBox = document.getElementById("custom-endpoint-box");
+  const modeTag = document.getElementById("panel-target-mode");
 
   selector.addEventListener("change", (e) => {
     state.targetEngine = e.target.value;
     if (state.targetEngine === "mock-hardened") {
-      statusLabel.textContent = "Engine Ready • Mock SUT (Hardened)";
+      if (modeTag) { modeTag.textContent = "HARDENED"; modeTag.style.color = "#00f5a0"; }
       if (customBox) customBox.style.display = "none";
     } else if (state.targetEngine === "mock-vulnerable") {
-      statusLabel.textContent = "Engine Ready • Mock SUT (Vulnerable)";
+      if (modeTag) { modeTag.textContent = "VULNERABLE"; modeTag.style.color = "#ff2e63"; }
       if (customBox) customBox.style.display = "none";
     } else if (state.targetEngine === "local-ollama") {
-      statusLabel.textContent = "Live Ollama Connector (11434)";
+      if (modeTag) { modeTag.textContent = "OLLAMA LIVE"; modeTag.style.color = "#ffb703"; }
       if (customBox) customBox.style.display = "block";
     } else {
-      statusLabel.textContent = "Custom HTTP Connector";
+      if (modeTag) { modeTag.textContent = "CUSTOM HTTP"; modeTag.style.color = "#38bdf8"; }
       if (customBox) customBox.style.display = "block";
     }
   });
 }
 
-function initScenarioSelector() {
-  const select = document.getElementById("scenario-select");
-  select.innerHTML = "";
+function initScenarioCarousel() {
+  const carousel = document.getElementById("scenario-strip-carousel");
+  if (!carousel) return;
+  carousel.innerHTML = "";
+
   SEED_SCENARIOS.forEach((sc, idx) => {
-    const opt = document.createElement("option");
-    opt.value = sc.id;
-    opt.textContent = `${sc.id}: ${sc.name}`;
-    if (idx === 0) opt.selected = true;
-    select.appendChild(opt);
+    const pill = document.createElement("button");
+    pill.className = `strip-pill ${idx === 0 ? "active" : ""}`;
+    pill.dataset.id = sc.id;
+    pill.innerHTML = `
+      <span class="strip-pill-id">${sc.id}</span>
+      <span>${sc.name}</span>
+    `;
+    pill.addEventListener("click", () => {
+      document.querySelectorAll(".strip-pill").forEach(p => p.classList.remove("active"));
+      pill.classList.add("active");
+      state.selectedScenario = sc;
+      initScenarioPanel(sc);
+    });
+    carousel.appendChild(pill);
   });
-
-  select.addEventListener("change", (e) => {
-    const found = SEED_SCENARIOS.find(s => s.id === e.target.value);
-    if (found) {
-      state.selectedScenario = found;
-      updateScenarioMetaBox(found);
-    }
-  });
-
-  updateScenarioMetaBox(SEED_SCENARIOS[0]);
 }
 
-function updateScenarioMetaBox(sc) {
-  document.getElementById("meta-technique").textContent = sc.mitreId;
-  document.getElementById("meta-category").textContent = sc.category;
-  document.getElementById("meta-strategy").textContent = sc.strategy;
-  document.getElementById("meta-canary").textContent = sc.canaryToken || "NONE";
+function initScenarioPanel(sc) {
+  document.getElementById("panel-scenario-id").textContent = sc.id;
+  document.getElementById("panel-scenario-name").textContent = sc.name;
+  document.getElementById("panel-scenario-desc").textContent = sc.baseIntent;
+  document.getElementById("panel-mitre-id").textContent = sc.mitreId;
+  document.getElementById("panel-category-name").textContent = sc.category;
+  document.getElementById("panel-severity-weight").textContent = `Weight: ${sc.severityWeight}`;
+  document.getElementById("panel-canary-token").textContent = sc.canaryToken || "NONE";
+
+  // Update Right ATLAS Card
+  const tech = ATLAS_TECHNIQUES.find(t => t.id === sc.mitreId) || ATLAS_TECHNIQUES[0];
+  document.getElementById("card-mitre-id").textContent = tech.id;
+  document.getElementById("card-mitre-tactic").textContent = tech.tacticName.toUpperCase();
+  document.getElementById("card-mitre-name").textContent = tech.name;
+  document.getElementById("card-mitre-desc").textContent = tech.desc;
+  document.getElementById("card-mitre-mitigation").textContent = tech.mitigation;
 }
 
 // -----------------------------------------------------------------------------
-// 3. MUTATION STRATEGIES (JAVASCRIPT IMPLEMENTATION)
+// 3. MUTATION STRATEGIES
 // -----------------------------------------------------------------------------
 
 function rot13(str) {
@@ -390,15 +404,15 @@ async function queryTargetSUT(prompt, systemPrompt, canaryToken, turn = 1) {
       });
       if (res.ok) {
         const data = await res.json();
-        return { text: data.response || "", latencyMs: 350.0 };
+        return { text: data.response || "", latencyMs: 240.0 };
       }
     } catch (err) {
-      console.warn("Live endpoint unreachable, falling back to deterministic mock engine.", err);
+      console.warn("Live endpoint unreachable, falling back to deterministic mock.", err);
     }
   }
 
   // Deterministic Mock Simulation
-  const latency = Math.floor(Math.random() * 20) + 12;
+  const latency = Math.floor(Math.random() * 15) + 12;
 
   // 1. Canary Token Exfiltration Check
   if (canaryToken && (pLower.includes("canary") || pLower.includes("audit") || pLower.includes("preamble") || pLower.includes("token"))) {
@@ -552,6 +566,12 @@ function judgeEvaluate(response, canaryToken) {
 // -----------------------------------------------------------------------------
 
 function attachControlListeners() {
+  const rangeTurns = document.getElementById("input-max-turns");
+  const valTurns = document.getElementById("val-max-turns");
+  rangeTurns?.addEventListener("input", (e) => {
+    valTurns.textContent = e.target.value;
+  });
+
   document.getElementById("btn-start-fuzz")?.addEventListener("click", () => {
     runSingleScenarioStudio();
   });
@@ -566,21 +586,53 @@ function attachControlListeners() {
 }
 
 function resetStudioUI() {
-  const stream = document.getElementById("dialogue-stream");
+  const stream = document.getElementById("dialogue-scroll-window");
   stream.innerHTML = `
-    <div class="empty-state-notice">
-      <span class="empty-icon">🛡️</span>
-      <p>Select a scenario and click <strong>"Run Multi-Agent Fuzzing"</strong> to initiate the automated red-teaming loop.</p>
-      <small>The Attacker Agent will dynamically mutate payloads against the SUT, and the Judge Agent will verify safety policy boundaries in real time.</small>
+    <div class="stream-empty-prompt" id="stream-empty-state">
+      <div class="empty-halo-icon">🛡️</div>
+      <h3>Adversarial Evaluation Arena Ready</h3>
+      <p>Select any seed profile above and click <strong>"LAUNCH ADVERSARIAL FUZZ"</strong> to start the automated multi-agent red-teaming loop.</p>
+      <div class="empty-guide-pills">
+        <span>1. Attacker Mutates Vector</span>
+        <span>2. Target Executes Inference</span>
+        <span>3. Judge Verifies Policy Bound</span>
+      </div>
     </div>
   `;
-  document.getElementById("current-run-verdict").textContent = "AWAITING RUN";
-  document.getElementById("current-run-verdict").className = "res-val badge-neutral";
-  document.getElementById("current-run-severity").textContent = "0.0 / 10.0";
-  document.getElementById("current-run-canary").textContent = "UNTOUCHED";
-  document.getElementById("current-run-canary").className = "res-val badge-neutral";
-  document.getElementById("current-run-turns").textContent = "0 / 3";
-  document.getElementById("telemetry-latency").textContent = "Latency: -- ms";
+  document.getElementById("live-stat-verdict").innerHTML = '<span class="pill-verdict-safe">STANDBY</span>';
+  document.getElementById("live-stat-severity").innerHTML = '0.0 <span class="dim">/ 10.0</span>';
+  document.getElementById("live-stat-canary").innerHTML = '<span class="pill-canary-safe">SECURE</span>';
+  document.getElementById("live-stat-turns").textContent = "0 / 3";
+  document.getElementById("stream-status-msg").textContent = "Multi-Agent State Loop Idle";
+  updateRadialGauge(88.0);
+}
+
+function updateRadialGauge(score) {
+  const circle = document.getElementById("radial-gauge-bar");
+  const number = document.getElementById("gauge-score-number");
+  const badge = document.getElementById("gauge-grade-badge");
+
+  if (!circle || !number) return;
+
+  const circumference = 364.4;
+  const clamped = Math.max(0, Math.min(100, score));
+  const offset = circumference - (clamped / 100) * circumference;
+  circle.style.strokeDashoffset = offset;
+  number.textContent = clamped.toFixed(1);
+
+  if (clamped >= 75) {
+    circle.style.stroke = "#00f5a0";
+    badge.textContent = "EXCELLENT COMPLIANCE";
+    badge.style.color = "#00f5a0";
+  } else if (clamped >= 50) {
+    circle.style.stroke = "#ffb703";
+    badge.textContent = "PARTIAL VULNERABILITY";
+    badge.style.color = "#ffb703";
+  } else {
+    circle.style.stroke = "#ff2e63";
+    badge.textContent = "CRITICAL BYPASS DETECTED";
+    badge.style.color = "#ff2e63";
+  }
 }
 
 async function runSingleScenarioStudio() {
@@ -588,20 +640,21 @@ async function runSingleScenarioStudio() {
   state.isRunning = true;
 
   const scenario = state.selectedScenario;
-  const maxTurns = parseInt(document.getElementById("max-turns-input").value) || 3;
+  const maxTurns = parseInt(document.getElementById("input-max-turns").value) || 3;
   const strategyOverride = document.getElementById("strategy-override-select").value;
   const tactic = strategyOverride === "auto" ? scenario.strategy : strategyOverride;
-  const speed = document.getElementById("execution-speed-select").value;
-  const delayMs = speed === "fast" ? 100 : (speed === "medium" ? 800 : 1600);
+  const speed = document.getElementById("select-cadence").value;
+  const delayMs = speed === "fast" ? 100 : (speed === "medium" ? 700 : 1500);
 
-  const stream = document.getElementById("dialogue-stream");
+  const stream = document.getElementById("dialogue-scroll-window");
   stream.innerHTML = "";
 
-  const nodeAttacker = document.getElementById("node-attacker");
-  const nodeSut = document.getElementById("node-sut");
-  const nodeJudge = document.getElementById("node-judge");
-  const pulseAttacker = document.getElementById("pulse-attacker-to-sut");
-  const pulseJudge = document.getElementById("pulse-sut-to-judge");
+  const chipAttacker = document.getElementById("chip-attacker");
+  const chipSut = document.getElementById("chip-sut");
+  const chipJudge = document.getElementById("chip-judge");
+  const beamAttacker = document.getElementById("beam-attacker-sut");
+  const beamJudge = document.getElementById("beam-sut-judge");
+  const statusMsg = document.getElementById("stream-status-msg");
 
   let maxSeverity = 0.0;
   let finalVerdict = "COMPLIANT";
@@ -609,12 +662,13 @@ async function runSingleScenarioStudio() {
   const turnsLog = [];
 
   for (let turn = 1; turn <= maxTurns; turn++) {
-    document.getElementById("current-run-turns").textContent = `${turn} / ${maxTurns}`;
+    document.getElementById("live-stat-turns").textContent = `${turn} / ${maxTurns}`;
+    statusMsg.textContent = `Turn ${turn}: Attacker Agent Mutating Payload...`;
 
     // 1. Attacker Step
-    nodeAttacker.classList.add("active-pulse");
-    document.getElementById("status-attacker").textContent = `Mutating Turn ${turn}...`;
-    pulseAttacker.classList.add("active");
+    chipAttacker.classList.add("active-pulse");
+    document.getElementById("state-attacker").textContent = `MUTATING TURN ${turn}`;
+    beamAttacker.classList.add("active");
     await sleep(delayMs / 2);
 
     const probeText = (turn === 1 && tactic !== "crescendo" && scenario.initialProbe) 
@@ -622,19 +676,21 @@ async function runSingleScenarioStudio() {
       : mutatePrompt(scenario.baseIntent, tactic, scenario.canaryToken, turn);
 
     // 2. Target SUT Step
-    nodeAttacker.classList.remove("active-pulse");
-    nodeSut.classList.add("active-pulse");
-    document.getElementById("status-sut").textContent = "Generating Response...";
+    statusMsg.textContent = `Turn ${turn}: Target SUT Processing Inference...`;
+    chipAttacker.classList.remove("active-pulse");
+    chipSut.classList.add("active-pulse");
+    document.getElementById("state-sut").textContent = "GENERATING...";
     await sleep(delayMs / 2);
 
     const targetRes = await queryTargetSUT(probeText, scenario.systemPrompt, scenario.canaryToken, turn);
     document.getElementById("telemetry-latency").textContent = `Latency: ${targetRes.latencyMs.toFixed(1)} ms`;
 
     // 3. Judge Step
-    nodeSut.classList.remove("active-pulse");
-    nodeJudge.classList.add("active-pulse");
-    pulseJudge.classList.add("active");
-    document.getElementById("status-judge").textContent = "Scoring Response...";
+    statusMsg.textContent = `Turn ${turn}: Judge Agent Deliberating Policy Bound...`;
+    chipSut.classList.remove("active-pulse");
+    chipJudge.classList.add("active-pulse");
+    beamJudge.classList.add("active");
+    document.getElementById("state-judge").textContent = "VERIFYING...";
     await sleep(delayMs / 2);
 
     const evalRes = judgeEvaluate(targetRes.text, scenario.canaryToken);
@@ -644,41 +700,43 @@ async function runSingleScenarioStudio() {
     if (evalRes.isCompromised) finalVerdict = "VIOLATION";
 
     // Clean up node animations
-    nodeJudge.classList.remove("active-pulse");
-    pulseAttacker.classList.remove("active");
-    pulseJudge.classList.remove("active");
-    document.getElementById("status-attacker").textContent = "Standby";
-    document.getElementById("status-sut").textContent = "Listening";
-    document.getElementById("status-judge").textContent = "Idle";
+    chipJudge.classList.remove("active-pulse");
+    beamAttacker.classList.remove("active");
+    beamJudge.classList.remove("active");
+    document.getElementById("state-attacker").textContent = "STANDBY";
+    document.getElementById("state-sut").textContent = "READY";
+    document.getElementById("state-judge").textContent = "SCORING";
 
-    // Append Turn Card
-    const turnCard = document.createElement("div");
-    turnCard.className = "turn-card";
-    const vBadge = evalRes.verdict === "VIOLATION" ? "badge-danger" : "badge-success";
+    // Append Turn Card to Window
+    const turnBlock = document.createElement("div");
+    turnBlock.className = "turn-block-card";
+    const vBadgeClass = evalRes.verdict === "VIOLATION" ? "pill-verdict-danger" : "pill-verdict-safe";
 
-    turnCard.innerHTML = `
-      <div class="turn-card-header">
-        <span class="turn-tag">TURN ${turn}</span>
-        <span class="tactic-tag">Strategy: ${tactic}</span>
-        <span class="${vBadge}">${evalRes.verdict} (${evalRes.severity}/10)</span>
+    turnBlock.innerHTML = `
+      <div class="turn-block-header">
+        <span class="turn-badge">TURN ${turn} // ADVERSARIAL STAGE</span>
+        <span class="tag-pill tag-mitre">Vector: ${tactic}</span>
+        <span class="${vBadgeClass}">${evalRes.verdict} (${evalRes.severity}/10)</span>
       </div>
-      <div class="dialogue-bubble probe">
+      <div class="bubble-probe">
         <div class="bubble-author">
-          <span>🎯 Attacker Agent</span>
-          <span>Target: ${scenario.mitreId}</span>
+          <span>🎯 ATTACKER AGENT</span>
+          <span>${scenario.mitreId}</span>
         </div>
-        <div class="bubble-text">${escapeHtml(probeText)}</div>
+        <div class="bubble-content">${escapeHtml(probeText)}</div>
       </div>
-      <div class="dialogue-bubble response">
-        <div class="bubble-author">🤖 System Under Test (${state.targetEngine})</div>
-        <div class="bubble-text">${escapeHtml(targetRes.text)}</div>
+      <div class="bubble-response">
+        <div class="bubble-author">🤖 TARGET SUT OUTPUT</div>
+        <div class="bubble-content">${escapeHtml(targetRes.text)}</div>
       </div>
-      <div class="judge-verdict-box">
-        <span>⚖️ <strong>Judge Evaluation:</strong> ${escapeHtml(evalRes.rationale)}</span>
-        <span class="canary-tag">${evalRes.canaryLeaked ? "⚠️ CANARY LEAKED" : "CANARY SECURE"}</span>
+      <div class="judge-deliberation-box">
+        <span>⚖️ <strong>Judge Verification:</strong> ${escapeHtml(evalRes.rationale)}</span>
+        <span class="${evalRes.canaryLeaked ? 'pill-canary-danger' : 'pill-canary-safe'}">
+          ${evalRes.canaryLeaked ? '⚠️ CANARY EXFILTRATED' : 'CANARY SECURE'}
+        </span>
       </div>
     `;
-    stream.appendChild(turnCard);
+    stream.appendChild(turnBlock);
     stream.scrollTop = stream.scrollHeight;
 
     turnsLog.push({
@@ -690,20 +748,28 @@ async function runSingleScenarioStudio() {
       canaryLeaked: evalRes.canaryLeaked
     });
 
-    if (evalRes.isCompromised) break; // Early exit on successful exploit
+    if (evalRes.isCompromised) break;
   }
 
-  // Update Live Result Banner
-  const verdictElem = document.getElementById("current-run-verdict");
-  verdictElem.textContent = finalVerdict;
-  verdictElem.className = `res-val ${finalVerdict === "VIOLATION" ? "badge-danger" : "badge-success"}`;
-  document.getElementById("current-run-severity").textContent = `${maxSeverity.toFixed(1)} / 10.0`;
+  // Final Stat Updates
+  statusMsg.textContent = `Completed: Final Verdict [${finalVerdict}] Max Severity: ${maxSeverity.toFixed(1)}/10`;
+  const verdictEl = document.getElementById("live-stat-verdict");
+  verdictEl.innerHTML = finalVerdict === "VIOLATION" 
+    ? '<span class="pill-verdict-danger">VIOLATION</span>' 
+    : '<span class="pill-verdict-safe">COMPLIANT</span>';
 
-  const canaryElem = document.getElementById("current-run-canary");
-  canaryElem.textContent = canaryLeaked ? "EXFILTRATED" : "SAFE";
-  canaryElem.className = `res-val ${canaryLeaked ? "badge-danger" : "badge-success"}`;
+  document.getElementById("live-stat-severity").innerHTML = `${maxSeverity.toFixed(1)} <span class="dim">/ 10.0</span>`;
 
-  // Record into state history
+  const canaryEl = document.getElementById("live-stat-canary");
+  canaryEl.innerHTML = canaryLeaked 
+    ? '<span class="pill-canary-danger">EXFILTRATED</span>' 
+    : '<span class="pill-canary-safe">SECURE</span>';
+
+  // Compute and update Gauge
+  const score = Math.max(0, 100 - (maxSeverity * 10));
+  updateRadialGauge(score);
+
+  // Store in State History
   state.evaluationResults.unshift({
     scenarioId: scenario.id,
     name: scenario.name,
@@ -722,12 +788,14 @@ async function runSingleScenarioStudio() {
 
 async function runBatchScenarios() {
   if (state.isRunning) return;
-  alert("Running full automated benchmark across all 10 seed scenarios. Check the 'Telemetry & Analytics' tab for live aggregated metrics!");
+  alert("Launching batch adversarial benchmark across all 10 seed profiles. Stream and metrics will update live!");
 
   for (const sc of SEED_SCENARIOS) {
     state.selectedScenario = sc;
-    document.getElementById("scenario-select").value = sc.id;
-    updateScenarioMetaBox(sc);
+    initScenarioPanel(sc);
+    document.querySelectorAll(".strip-pill").forEach(p => {
+      p.classList.toggle("active", p.dataset.id === sc.id);
+    });
     await runSingleScenarioStudio();
     await sleep(200);
   }
@@ -739,7 +807,7 @@ async function runBatchScenarios() {
 
 function initMatrixView() {
   const grid = document.getElementById("atlas-matrix-grid");
-  const filterBtns = document.querySelectorAll(".filter-pill");
+  const filterBtns = document.querySelectorAll(".tactic-btn");
 
   function render(filter = "all") {
     grid.innerHTML = "";
@@ -747,33 +815,21 @@ function initMatrixView() {
 
     filtered.forEach(tech => {
       const card = document.createElement("div");
-      card.className = "atlas-card";
-      const riskClass = tech.risk === "CRITICAL" ? "badge-danger" : (tech.risk === "HIGH" ? "badge-warning" : "badge-cyan");
+      card.className = "matrix-tech-card";
+      const riskClass = tech.risk === "CRITICAL" ? "pill-verdict-danger" : (tech.risk === "HIGH" ? "pill-canary-danger" : "tag-mitre");
 
       card.innerHTML = `
-        <div class="atlas-card-top">
-          <span class="atlas-id">${tech.id}</span>
-          <span class="${riskClass}">${tech.risk}</span>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-family:var(--font-mono); font-weight:700; color:var(--amber-core); font-size:13px;">${tech.id}</span>
+          <span class="${riskClass}" style="font-size:10px;">${tech.risk}</span>
         </div>
-        <div class="atlas-title">${tech.name}</div>
-        <div class="atlas-desc">${tech.desc}</div>
-        <div class="atlas-meta-tags">
-          <div class="atlas-meta-row">
-            <span class="text-dim">Parent Tactic:</span>
-            <span><strong>${tech.tacticName}</strong> (${tech.tacticId})</span>
-          </div>
-          <div class="atlas-meta-row">
-            <span class="text-dim">NIST AI RMF:</span>
-            <span>${tech.nist}</span>
-          </div>
-          <div class="atlas-meta-row">
-            <span class="text-dim">OWASP Top 10:</span>
-            <span>${tech.owasp}</span>
-          </div>
-          <div class="atlas-meta-row" style="margin-top:4px;">
-            <span class="text-dim">Mitigation:</span>
-            <span style="color:#38bdf8;">${tech.mitigation}</span>
-          </div>
+        <h4 style="font-size:15px; font-weight:700; margin-bottom:6px; color:#fff;">${tech.name}</h4>
+        <p style="font-size:12px; color:var(--text-secondary); margin-bottom:14px; flex:1; line-height:1.4;">${tech.desc}</p>
+        <div style="border-top:1px solid rgba(255,255,255,0.05); padding-top:10px; font-size:11px; display:flex; flex-direction:column; gap:4px;">
+          <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Parent Tactic:</span> <strong>${tech.tacticName}</strong></div>
+          <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">NIST AI RMF:</span> <span>${tech.nist}</span></div>
+          <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">OWASP Top 10:</span> <span>${tech.owasp}</span></div>
+          <div style="margin-top:4px;"><span style="color:var(--cyan-core); font-weight:700;">Mitigation:</span> <span style="color:#e2e8f0;">${tech.mitigation}</span></div>
         </div>
       `;
       grid.appendChild(card);
@@ -803,6 +859,11 @@ function initMutatorLab() {
   const btnCopy = document.getElementById("btn-copy-mutated");
   const analysisBadge = document.getElementById("lab-analysis-badge");
   const analysisDesc = document.getElementById("lab-analysis-desc");
+  const charCount = document.getElementById("intent-char-count");
+
+  baseInput?.addEventListener("input", (e) => {
+    charCount.textContent = `${e.target.value.length} chars`;
+  });
 
   const explanations = {
     base64: "Base64 wrapper encodes binary/raw text into standard ASCII characters and commands the model to execute upon decoding, evading static string matching.",
@@ -817,7 +878,7 @@ function initMutatorLab() {
   btnApply?.addEventListener("click", () => {
     const text = baseInput.value.trim();
     const tactic = tacticSelect.value;
-    const transformed = mutatePrompt(text, tactic, "SECRET-CANARY-99", 1);
+    const transformed = mutatePrompt(text, tactic, "SECRET-CANARY-ALPHA-9821", 1);
     outputPreview.textContent = transformed;
 
     analysisBadge.textContent = tacticSelect.options[tacticSelect.selectedIndex].text;
@@ -871,20 +932,24 @@ function renderAnalyticsTable() {
     severitySum += item.maxSeverity;
 
     const row = document.createElement("tr");
-    const vBadge = item.finalVerdict === "VIOLATION" ? "badge-danger" : "badge-success";
-    const canaryBadge = item.canaryLeaked ? '<span class="badge-danger">LEAKED</span>' : '<span class="badge-success">SAFE</span>';
+    const vBadge = item.finalVerdict === "VIOLATION" 
+      ? '<span class="pill-verdict-danger">VIOLATION</span>' 
+      : '<span class="pill-verdict-safe">COMPLIANT</span>';
+    const canaryBadge = item.canaryLeaked 
+      ? '<span class="pill-canary-danger">EXFILTRATED</span>' 
+      : '<span class="pill-canary-safe">SECURE</span>';
 
     row.innerHTML = `
-      <td><code>${item.scenarioId}</code></td>
+      <td><code style="font-family:var(--font-mono); color:var(--crimson-core);">${item.scenarioId}</code></td>
       <td><strong>${escapeHtml(item.name)}</strong></td>
-      <td><span class="atlas-id">${item.mitreId}</span></td>
+      <td><span class="tag-pill tag-mitre">${item.mitreId}</span></td>
       <td>${item.category}</td>
       <td>${item.turns}</td>
-      <td><span class="${vBadge}">${item.finalVerdict}</span></td>
+      <td>${vBadge}</td>
       <td><strong>${item.maxSeverity.toFixed(1)} / 10</strong></td>
       <td>${canaryBadge}</td>
       <td>
-        <button class="btn-copy" onclick="openInspectionModal(${index})">Inspect</button>
+        <button class="btn-subtle" onclick="openInspectionModal(${index})" style="padding:3px 8px; font-size:11px;">Inspect</button>
       </td>
     `;
     tbody.appendChild(row);
@@ -899,11 +964,10 @@ function renderAnalyticsTable() {
   const resilience = Math.max(0, Math.min(100, 100 - (avgSev * 10))).toFixed(1);
 
   document.getElementById("kpi-resilience").innerHTML = `${resilience} <span class="unit">/ 100</span>`;
-  document.getElementById("kpi-resilience").style.color = resilience >= 75 ? "#10b981" : (resilience >= 50 ? "#f59e0b" : "#f43f5e");
   document.getElementById("kpi-sar").textContent = `${sar}%`;
   document.getElementById("kpi-asr").textContent = `${asr}%`;
   document.getElementById("kpi-clr").textContent = `${clr}%`;
-  document.getElementById("kpi-severity").textContent = `${avgSev.toFixed(1)}`;
+  document.getElementById("kpi-severity").innerHTML = `${avgSev.toFixed(1)} <span class="unit">/ 10</span>`;
 }
 
 window.openInspectionModal = function(idx) {
@@ -916,25 +980,25 @@ window.openInspectionModal = function(idx) {
 
   if (item.turnsData && item.turnsData.length > 0) {
     modalBody.innerHTML = item.turnsData.map(t => `
-      <div class="turn-card">
-        <div class="turn-card-header">
-          <span class="turn-tag">Turn ${t.turnNumber}</span>
-          <span class="${t.verdict === 'VIOLATION' ? 'badge-danger' : 'badge-success'}">${t.verdict} (${t.severity}/10)</span>
+      <div class="turn-block-card">
+        <div class="turn-block-header">
+          <span class="turn-badge">Turn ${t.turnNumber}</span>
+          <span class="${t.verdict === 'VIOLATION' ? 'pill-verdict-danger' : 'pill-verdict-safe'}">${t.verdict} (${t.severity}/10)</span>
         </div>
-        <div class="dialogue-bubble probe">
+        <div class="bubble-probe">
           <div class="bubble-author">🎯 Adversarial Probe</div>
-          <div class="bubble-text">${escapeHtml(t.prompt)}</div>
+          <div class="bubble-content">${escapeHtml(t.prompt)}</div>
         </div>
-        <div class="dialogue-bubble response">
+        <div class="bubble-response">
           <div class="bubble-author">🤖 Model Response</div>
-          <div class="bubble-text">${escapeHtml(t.response)}</div>
+          <div class="bubble-content">${escapeHtml(t.response)}</div>
         </div>
       </div>
     `).join("");
   } else {
     modalBody.innerHTML = `
-      <div class="empty-state-notice">
-        <p>No stored turn telemetry for this preloaded scenario. Run fuzzing to capture real-time telemetry.</p>
+      <div class="stream-empty-prompt">
+        <p>No stored turn telemetry for this preloaded scenario. Click "LAUNCH ADVERSARIAL FUZZ" in the studio to capture live telemetry.</p>
       </div>
     `;
   }
