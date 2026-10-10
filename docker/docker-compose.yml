@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # Mock Target LLM simulating compliant and vulnerable models for offline evaluation
+  mock-target-llm:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: mock-target-llm
+    entrypoint: ["python", "-c"]
+    command:
+      - |
+        from benchmark_engine.mock.mock_llm_server import MockLLMServer
+        import time
+        server = MockLLMServer(host='0.0.0.0', port=11435, mode='hardened')
+        server.start()
+        print('Mock Target LLM running on 0.0.0.0:11435')
+        while True:
+            time.sleep(3600)
+    ports:
+      - "${MOCK_LLM_PORT:-11435}:11435"
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - fuzzer-net
+
+  # Multi-Agent Adversarial Red Teaming & Benchmark Engine CLI
+  fuzzer-engine:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: fuzzer-engine
+    depends_on:
+      - mock-target-llm
+    volumes:
+      - ../reports:/app/reports
+    environment:
+      - TARGET_URL=${TARGET_URL:-http://mock-target-llm:11435}
+      - MODEL_NAME=${MODEL_NAME:-mock-hardened}
+      - BENCHMARK_SCENARIOS=${BENCHMARK_SCENARIOS:-10}
+      - BENCHMARK_MAX_TURNS=${BENCHMARK_MAX_TURNS:-3}
+    command: ["run", "--target", "http://mock-target-llm:11435", "--iterations", "10", "--output-dir", "/app/reports"]
+    networks:
+      - fuzzer-net
+
+  # Web Dashboard serving interactive HTML risk reports
+  dashboard:
+    image: python:3.11-alpine
+    container_name: fuzzer-dashboard
+    volumes:
+      - ../reports:/reports
+    working_dir: /reports
+    command: ["python", "-m", "http.server", "8080"]
+    ports:
+      - "${DASHBOARD_PORT:-8080}:8080"
+    networks:
+      - fuzzer-net
+
+networks:
+  fuzzer-net:
+    driver: bridge
